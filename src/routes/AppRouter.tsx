@@ -2,9 +2,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import Loading from '../components/Loading/Loading';
 
-const Home = lazy(() => import('../screens/Home/home'));
-const Login = lazy(() => import('../screens/Login/login'));
-const PasswordRecovery = lazy(() => import('../screens/PasswordRecovery/PasswordRecovery'));
+const Home = lazy(() => import('../screens/Home/HomeScreen'));
+const Login = lazy(() => import('../screens/Login/LoginScreen'));
+const PasswordRecovery = lazy(() => import('../screens/PasswordRecovery/PasswordRecoveryScreen'));
 
 const AppRouter = () => {
   return (

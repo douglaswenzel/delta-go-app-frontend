@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Box, TextField, Button, Typography, Checkbox,FormControlLabel, Link } from '@mui/material';
 import { Container, FormBox } from './styles';
 
-const Login = () => {
+const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -67,7 +67,7 @@ const Login = () => {
           </Button>
           
           <Box sx={{ mt: 3, textAlign: 'center' }}>
-            <Link href="#" variant="body2" sx={{ mx: 1 }}>
+            <Link href="/recuperar-senha" variant="body2" sx={{ mx: 1 }}>
               Esqueceu a senha?
             </Link>
           </Box>
@@ -77,4 +77,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default LoginScreen;

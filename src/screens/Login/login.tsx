@@ -1,33 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Box,
-  TextField,
-  Button,
-  Typography,
-  Checkbox,
-  FormControlLabel,
-  Link
-} from '@mui/material';
-import { styled } from '@mui/material/styles';
-
-const Container = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  minHeight: '100vh',
-  backgroundColor: theme.palette.background.default,
-}));
-
-const FormBox = styled(Box)(({ theme }) => ({
-  width: '100%',
-  maxWidth: 400,
-  padding: theme.spacing(4),
-  borderRadius: theme.shape.borderRadius,
-  backgroundColor: theme.palette.background.paper,
-  boxShadow: theme.shadows[3],
-}));
+import { Box, TextField, Button, Typography, Checkbox,FormControlLabel, Link } from '@mui/material';
+import { Container, FormBox } from './styles';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -44,7 +18,7 @@ const Login = () => {
     <Container>
       <FormBox>
         <Typography variant="h4" gutterBottom align="center" color="primary">
-          Acesso ao Sistema
+          DeltaGo | Acesso 
         </Typography>
         
         <form onSubmit={handleSubmit}>
@@ -95,9 +69,6 @@ const Login = () => {
           <Box sx={{ mt: 3, textAlign: 'center' }}>
             <Link href="#" variant="body2" sx={{ mx: 1 }}>
               Esqueceu a senha?
-            </Link>
-            <Link href="#" variant="body2" sx={{ mx: 1 }}>
-              Criar conta
             </Link>
           </Box>
         </form>

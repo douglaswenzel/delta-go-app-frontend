@@ -1,6 +1,6 @@
 import { createTheme, responsiveFontSizes } from '@mui/material/styles';
 
-const baseTheme = createTheme({  // <-- Defina como baseTheme primeiro
+const baseTheme = createTheme({
   palette: {
     primary: {
       main: '#1976d2',
@@ -72,7 +72,7 @@ const baseTheme = createTheme({  // <-- Defina como baseTheme primeiro
     MuiButton: {
       styleOverrides: {
         root: {
-          textTransform: 'none', // Adicionei para evitar uppercase automático
+          textTransform: 'none',
           [createTheme().breakpoints.down('sm')]: {
             padding: '8px 16px',
             fontSize: '0.875rem',

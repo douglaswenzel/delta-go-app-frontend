@@ -22,7 +22,7 @@ const DashboardScreen = () => {
       <Title variant="h4">Bem-vindo ao Painel de Controle</Title>
       
       <ButtonsGrid>
-        <DashboardButton onClick={() => navigate('/cadastro-usuario"')}>
+        <DashboardButton onClick={() => navigate('/cadastro-usuario')}>
           <ButtonIcon>
             <PersonAddIcon fontSize="inherit" />
           </ButtonIcon>

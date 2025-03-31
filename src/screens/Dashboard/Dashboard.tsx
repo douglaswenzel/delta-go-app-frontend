@@ -13,15 +13,16 @@ import {
   Assessment as ReportsIcon,
   People as UsersIcon
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
 const DashboardScreen = () => {
+  const navigate = useNavigate();
   return (
     <DashboardContainer>
       <Title variant="h4">Bem-vindo ao Painel de Controle</Title>
       
       <ButtonsGrid>
-        {/* Botão Cadastro de Pessoas */}
-        <DashboardButton>
+        <DashboardButton onClick={() => navigate('/cadastro-usuario"')}>
           <ButtonIcon>
             <PersonAddIcon fontSize="inherit" />
           </ButtonIcon>

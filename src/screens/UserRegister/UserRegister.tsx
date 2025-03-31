@@ -25,6 +25,7 @@ import {
   Save as SaveIcon
 } from '@mui/icons-material';
 import { UserFormData } from './types';
+import { registerUser } from '../../services/api';
 
 const UserRegisterScreen = () => {
   const navigate = useNavigate();
@@ -90,17 +91,61 @@ const UserRegisterScreen = () => {
     e.preventDefault();
     setIsSubmitting(true);
     
+    const formDataToSend = new FormData();
+    
+    // Adiciona campos básicos
+    formDataToSend.append('name', formData.name);
+    formDataToSend.append('sobrenome', formData.sobrenome);
+    formDataToSend.append('tipo', formData.tipo);
+    formDataToSend.append('nascimento', formData.nascimento);
+    formDataToSend.append('unidade', formData.unidade);
+    formDataToSend.append('observacoes', formData.observacoes);
+    formDataToSend.append('permisso', String(formData.permisso));
+  
+    // Adiciona foto se existir
+    if (formData.foto) {
+      formDataToSend.append('foto', formData.foto);
+    }
+  
+    // Adiciona campos específicos
+    switch (formData.tipo) {
+      case 'funcionario':
+        formDataToSend.append('funcionario[cargo]', formData.funcionario?.cargo || '');
+        formDataToSend.append('funcionario[setor]', formData.funcionario?.setor || '');
+        formDataToSend.append('funcionario[data_admissao]', formData.funcionario?.data_admissao || '');
+        break;
+      
+      case 'aluno':
+        formDataToSend.append('aluno[matricula]', formData.aluno?.matricula || '');
+        formDataToSend.append('aluno[curso]', formData.aluno?.curso || '');
+        formDataToSend.append('aluno[turma]', formData.aluno?.turma || '');
+        break;
+      
+      case 'visitante':
+        formDataToSend.append('visitante[motivo_visita]', formData.visitante?.motivo_visita || '');
+        formDataToSend.append('visitante[visitado]', formData.visitante?.visitado || '');
+        formDataToSend.append('visitante[data_visita]', formData.visitante?.data_visita || '');
+        break;
+    }
+  
     try {
-      // Aqui você faria a chamada para a API
-      console.log('Dados do formulário:', formData);
+      const response = await registerUser(formDataToSend);
       
-      // Simulando um delay de rede
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Redirecionar com mensagem de sucesso
+      navigate('/dashboard', { 
+        state: { 
+          success: true,
+          message: 'Usuário cadastrado com sucesso!',
+          userId: response.userId
+        } 
+      });
       
-      // Redirecionar após cadastro
-      navigate('/dashboard', { state: { success: true } });
     } catch (error) {
-      console.error('Erro ao cadastrar usuário:', error);
+      console.error('Erro no cadastro:', error);
+      
+      // Exibir feedback de erro (você pode usar um snackbar/toast)
+      alert('Erro ao cadastrar usuário. Verifique os dados e tente novamente.');
+      
     } finally {
       setIsSubmitting(false);
     }

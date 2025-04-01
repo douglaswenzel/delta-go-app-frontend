@@ -3,8 +3,6 @@ import {
   Box,
   Button,
   Typography,
-  Paper,
-  Avatar
 } from '@mui/material';
 
 export const Container = styled(Box)(({ theme }) => ({
@@ -15,10 +13,64 @@ export const Container = styled(Box)(({ theme }) => ({
   margin: '0 auto',
 }));
 
-export const FormPaper = styled(Paper)(({ theme }) => ({
+export const FormPaper = styled('div')(({ theme }) => ({
   padding: theme.spacing(4),
-  marginTop: theme.spacing(2),
+  borderRadius: theme.shape.borderRadius,
+  backgroundColor: theme.palette.background.paper,
+  boxShadow: theme.shadows[3]
 }));
+
+export const FormLayout = styled('div')(({ theme }) => ({
+  display: 'grid',
+  gridTemplateColumns: '300px 1fr',
+  gap: theme.spacing(4),
+  [theme.breakpoints.down('md')]: {
+    gridTemplateColumns: '1fr'
+  }
+}));
+
+export const PhotoColumn = styled('div')({
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  gap: '1rem'
+});
+
+export const FormColumn = styled('div')({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '1.5rem'
+});
+
+export const UserPhoto = styled('img')({
+  width: '250px',
+  height: '250px',
+  borderRadius: '50%',
+  objectFit: 'cover',
+  border: '3px solid #e0e0e0'
+});
+
+export const FormSection = styled('div')({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '1rem'
+});
+
+export const FormRow = styled('div')({
+  display: 'flex',
+  gap: '1rem',
+  '& > *': {
+    flex: 1
+  },
+  '@media (max-width: 600px)': {
+    flexDirection: 'column',
+    gap: '1rem'
+  }
+});
+
+export const SubmitButton = styled(Button)({
+  minWidth: '200px'
+});
 
 export const Title = styled(Typography)(({ theme }) => ({
   marginBottom: theme.spacing(3),
@@ -36,17 +88,6 @@ export const PhotoContainer = styled(Box)(({ theme }) => ({
   flexDirection: 'column',
   alignItems: 'center',
   marginBottom: theme.spacing(3),
-}));
-
-export const UserPhoto = styled(Avatar)(({ theme }) => ({
-  width: 150,
-  height: 150,
-  marginBottom: theme.spacing(2),
-}));
-
-export const SubmitButton = styled(Button)(({ theme }) => ({
-  marginTop: theme.spacing(3),
-  padding: theme.spacing(1.5),
 }));
 
 export {};

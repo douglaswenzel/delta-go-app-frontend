@@ -4,8 +4,7 @@ import {
   Container,
   FormPaper,
   Title,
-  FormGrid,
-  PhotoContainer,
+    PhotoContainer,
   UserPhoto,
   SubmitButton
 } from './styles';
@@ -14,23 +13,47 @@ import {
   Typography,
   Button,
   MenuItem,
-  Input,
-  FormControlLabel,
-  Checkbox,
   Box,
-  CircularProgress
+  Alert,
+  Snackbar,
+  LinearProgress,
+  Grid
 } from '@mui/material';
-import { 
-  CameraAlt as CameraIcon,
-  Save as SaveIcon
-} from '@mui/icons-material';
+import { CameraAlt as CameraIcon } from '@mui/icons-material';
 import { UserFormData } from './types';
 import { registerUser } from '../../services/api';
+
+// Definindo tipos mais seguros para os objetos aninhados
+interface FuncionarioData {
+  cargo: string;
+  setor: string;
+  data_admissao: string;
+}
+
+interface AlunoData {
+  matricula: string;
+  curso: string;
+  turma: string;
+}
+
+interface VisitanteData {
+  motivo_visita: string;
+  visitado: string;
+  data_visita: string;
+}
+
+type CompleteUserFormData = Omit<UserFormData, 'funcionario' | 'aluno' | 'visitante'> & {
+  funcionario: FuncionarioData;
+  aluno: AlunoData;
+  visitante: VisitanteData;
+};
 
 const UserRegisterScreen = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [formData, setFormData] = useState<UserFormData>({
+  
+  // Estados com tipos completos
+  const [formData, setFormData] = useState<CompleteUserFormData>({
     name: '',
     sobrenome: '',
     tipo: 'funcionario',
@@ -38,33 +61,107 @@ const UserRegisterScreen = () => {
     unidade: '',
     observacoes: '',
     permisso: false,
-    funcionario: {
-      cargo: '',
-      setor: '',
-      data_admissao: '',
-    },
+    funcionario: { cargo: '', setor: '', data_admissao: '' },
+    aluno: { matricula: '', curso: '', turma: '' },
+    visitante: { motivo_visita: '', visitado: '', data_visita: '' }
   });
+  
   const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [alert, setAlert] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error' | 'warning' | 'info'
+  });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, checked, type } = e.target;
+  const handleCloseAlert = () => {
+    setAlert({ ...alert, open: false });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setUploadProgress(0);
+
+    try {
+      const formDataToSend = new FormData();
+      
+      // Adiciona os campos básicos ao FormData
+      Object.entries({
+        name: formData.name,
+        sobrenome: formData.sobrenome,
+        tipo: formData.tipo,
+        nascimento: formData.nascimento,
+        unidade: formData.unidade,
+        observacoes: formData.observacoes,
+        permisso: formData.permisso
+      }).forEach(([key, value]) => {
+        formDataToSend.append(key, value.toString());
+      });
+
+      // Adiciona campos específicos do tipo de usuário
+      if (formData.tipo === 'funcionario') {
+        Object.entries(formData.funcionario).forEach(([key, value]) => {
+          formDataToSend.append(`funcionario[${key}]`, value);
+        });
+      } else if (formData.tipo === 'aluno') {
+        Object.entries(formData.aluno).forEach(([key, value]) => {
+          formDataToSend.append(`aluno[${key}]`, value);
+        });
+      } else if (formData.tipo === 'visitante') {
+        Object.entries(formData.visitante).forEach(([key, value]) => {
+          formDataToSend.append(`visitante[${key}]`, value);
+        });
+      }
+
+      // Adiciona a foto se existir
+      if (previewPhoto) {
+        const blob = await fetch(previewPhoto).then(r => r.blob());
+        formDataToSend.append('foto', blob, 'foto_usuario.jpg');
+      }
+
+      await registerUser({
+        data: formDataToSend,
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round(
+            (progressEvent.loaded * 100) / (progressEvent.total || 1)
+          );
+          setUploadProgress(percentCompleted);
+        }
+      });
+
+      setAlert({
+        open: true,
+        message: 'Usuário cadastrado com sucesso!',
+        severity: 'success'
+      });
+      
+      // Redireciona após 2 segundos
+      setTimeout(() => navigate('/'), 2000);
+    } catch (error) {
+      setAlert({
+        open: true,
+        message: 'Erro ao cadastrar usuário. Tente novamente.',
+        severity: 'error'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
     
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
-      
-      setFormData(prev => {
-        // Garante que o objeto pai existe
-        const parentObj = prev[parent as keyof UserFormData] || {};
-        
-        return {
-          ...prev,
-          [parent]: {
-            ...parentObj,
-            [child]: type === 'checkbox' ? checked : value
-          }
-        };
-      });
+      setFormData(prev => ({
+        ...prev,
+        [parent]: {
+          ...(prev[parent as keyof CompleteUserFormData] as object),
+          [child]: type === 'checkbox' ? checked : value
+        }
+      }));
     } else {
       setFormData(prev => ({
         ...prev,
@@ -75,179 +172,13 @@ const UserRegisterScreen = () => {
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setFormData(prev => ({ ...prev, foto: file }));
-      
-      // Criar preview da imagem
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewPhoto(reader.result as string);
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setPreviewPhoto(event.target.result as string);
+        }
       };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    
-    const formDataToSend = new FormData();
-    
-    // Adiciona campos básicos
-    formDataToSend.append('name', formData.name);
-    formDataToSend.append('sobrenome', formData.sobrenome);
-    formDataToSend.append('tipo', formData.tipo);
-    formDataToSend.append('nascimento', formData.nascimento);
-    formDataToSend.append('unidade', formData.unidade);
-    formDataToSend.append('observacoes', formData.observacoes);
-    formDataToSend.append('permisso', String(formData.permisso));
-  
-    // Adiciona foto se existir
-    if (formData.foto) {
-      formDataToSend.append('foto', formData.foto);
-    }
-  
-    // Adiciona campos específicos
-    switch (formData.tipo) {
-      case 'funcionario':
-        formDataToSend.append('funcionario[cargo]', formData.funcionario?.cargo || '');
-        formDataToSend.append('funcionario[setor]', formData.funcionario?.setor || '');
-        formDataToSend.append('funcionario[data_admissao]', formData.funcionario?.data_admissao || '');
-        break;
-      
-      case 'aluno':
-        formDataToSend.append('aluno[matricula]', formData.aluno?.matricula || '');
-        formDataToSend.append('aluno[curso]', formData.aluno?.curso || '');
-        formDataToSend.append('aluno[turma]', formData.aluno?.turma || '');
-        break;
-      
-      case 'visitante':
-        formDataToSend.append('visitante[motivo_visita]', formData.visitante?.motivo_visita || '');
-        formDataToSend.append('visitante[visitado]', formData.visitante?.visitado || '');
-        formDataToSend.append('visitante[data_visita]', formData.visitante?.data_visita || '');
-        break;
-    }
-  
-    try {
-      const response = await registerUser(formDataToSend);
-      
-      // Redirecionar com mensagem de sucesso
-      navigate('/dashboard', { 
-        state: { 
-          success: true,
-          message: 'Usuário cadastrado com sucesso!',
-          userId: response.userId
-        } 
-      });
-      
-    } catch (error) {
-      console.error('Erro no cadastro:', error);
-      
-      // Exibir feedback de erro (você pode usar um snackbar/toast)
-      alert('Erro ao cadastrar usuário. Verifique os dados e tente novamente.');
-      
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const renderSpecificFields = () => {
-    switch (formData.tipo) {
-      case 'funcionario':
-        return (
-          <>
-            <TextField
-              name="funcionario.cargo"
-              label="Cargo"
-              value={formData.funcionario?.cargo || ''}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-            <TextField
-              name="funcionario.setor"
-              label="Setor"
-              value={formData.funcionario?.setor || ''}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-            <TextField
-              name="funcionario.data_admissao"
-              label="Data de Admissão"
-              type="date"
-              InputLabelProps={{ shrink: true }}
-              value={formData.funcionario?.data_admissao || ''}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-          </>
-        );
-      case 'aluno':
-        return (
-          <>
-            <TextField
-              name="aluno.matricula"
-              label="Matrícula"
-              value={formData.aluno?.matricula || ''}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-            <TextField
-              name="aluno.curso"
-              label="Curso"
-              value={formData.aluno?.curso || ''}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-            <TextField
-              name="aluno.turma"
-              label="Turma"
-              value={formData.aluno?.turma || ''}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-          </>
-        );
-      case 'visitante':
-        return (
-          <>
-            <TextField
-              name="visitante.motivo_visita"
-              label="Motivo da Visita"
-              value={formData.visitante?.motivo_visita || ''}
-              onChange={handleChange}
-              fullWidth
-              required
-              multiline
-              rows={3}
-            />
-            <TextField
-              name="visitante.visitado"
-              label="Pessoa Visitada"
-              value={formData.visitante?.visitado || ''}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-            <TextField
-              name="visitante.data_visita"
-              label="Data da Visita"
-              type="datetime-local"
-              InputLabelProps={{ shrink: true }}
-              value={formData.visitante?.data_visita || ''}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-          </>
-        );
-      default:
-        return null;
+      reader.readAsDataURL(e.target.files[0]);
     }
   };
 
@@ -257,123 +188,129 @@ const UserRegisterScreen = () => {
       
       <FormPaper elevation={3}>
         <form onSubmit={handleSubmit}>
-          <PhotoContainer>
-            <UserPhoto
-              src={previewPhoto || '/default-user.png'}
-              alt="Preview da foto"
-            />
-            <Input
-              type="file"
-              inputRef={fileInputRef}
-              onChange={handlePhotoChange}
-              style={{ display: 'none' }}
-              inputProps={{ accept: 'image/*' }}
-              required
-            />
-            <Button
-              variant="contained"
-              color="secondary"
-              startIcon={<CameraIcon />}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              Selecionar Foto
-            </Button>
-            <Typography variant="caption" color="textSecondary">
-              Foto para reconhecimento facial
-            </Typography>
-          </PhotoContainer>
-
-          <FormGrid>
-            <TextField
-              name="name"
-              label="Nome"
-              value={formData.name}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-            <TextField
-              name="sobrenome"
-              label="Sobrenome"
-              value={formData.sobrenome}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-            <TextField
-              name="tipo"
-              label="Tipo de Usuário"
-              value={formData.tipo}
-              onChange={handleChange}
-              select
-              fullWidth
-              required
-            >
-              <MenuItem value="funcionario">Funcionário</MenuItem>
-              <MenuItem value="aluno">Aluno</MenuItem>
-              <MenuItem value="visitante">Visitante</MenuItem>
-            </TextField>
-            <TextField
-              name="nascimento"
-              label="Data de Nascimento"
-              type="date"
-              InputLabelProps={{ shrink: true }}
-              value={formData.nascimento}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-            <TextField
-              name="unidade"
-              label="Unidade"
-              value={formData.unidade}
-              onChange={handleChange}
-              fullWidth
-              required
-            />
-            <TextField
-              name="observacoes"
-              label="Observações"
-              value={formData.observacoes}
-              onChange={handleChange}
-              fullWidth
-              multiline
-              rows={3}
-            />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  name="permisso"
-                  checked={formData.permisso}
-                  onChange={handleChange}
-                  color="primary"
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={4}>
+              <PhotoContainer>
+                <UserPhoto>
+                  {previewPhoto ? (
+                    <img src={previewPhoto} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <CameraIcon fontSize="large" />
+                  )}
+                </UserPhoto>
+                <Button
+                  variant="contained"
+                  component="label"
+                  startIcon={<CameraIcon />}
+                  fullWidth
+                  sx={{ mt: 2 }}
+                >
+                  Adicionar Foto
+                  <input
+                    type="file"
+                    hidden
+                    accept="image/*"
+                    onChange={handlePhotoChange}
+                    ref={fileInputRef}
+                  />
+                </Button>
+              </PhotoContainer>
+            </Grid>
+            <Grid item xs={12} md={8}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <TextField
+                  label="Nome"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                  fullWidth
+                  required
                 />
-              }
-              label="Tem permissão de acesso?"
-            />
-          </FormGrid>
 
-          <Title variant="h6" sx={{ mt: 4, mb: 2 }}>
-            Informações Específicas
-          </Title>
-          
-          <FormGrid>
-            {renderSpecificFields()}
-          </FormGrid>
+                <TextField
+                  label="Sobrenome"
+                  name="sobrenome"
+                  value={formData.sobrenome}
+                  onChange={handleInputChange}
+                  fullWidth
+                  required
+                />
 
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-            <SubmitButton
-              variant="contained"
-              color="primary"
-              type="submit"
-              startIcon={isSubmitting ? <CircularProgress size={20} /> : <SaveIcon />}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? 'Salvando...' : 'Salvar Cadastro'}
-            </SubmitButton>
-          </Box>
+                <TextField
+                  select
+                  label="Tipo de Usuário"
+                  name="tipo"
+                  value={formData.tipo}
+                  onChange={handleInputChange}
+                  fullWidth
+                >
+                  <MenuItem value="funcionario">Funcionário</MenuItem>
+                  <MenuItem value="aluno">Aluno</MenuItem>
+                  <MenuItem value="visitante">Visitante</MenuItem>
+                </TextField>
+
+                {formData.tipo === 'funcionario' && (
+                  <>
+                    <TextField
+                      label="Cargo"
+                      name="funcionario.cargo"
+                      value={formData.funcionario.cargo}
+                      onChange={handleInputChange}
+                      fullWidth
+                      required
+                    />
+                    <TextField
+                      label="Setor"
+                      name="funcionario.setor"
+                      value={formData.funcionario.setor}
+                      onChange={handleInputChange}
+                      fullWidth
+                      required
+                    />
+                  </>
+                )}
+
+                <SubmitButton
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  disabled={isSubmitting}
+                  fullWidth
+                  size="large"
+                >
+                  {isSubmitting ? 'Cadastrando...' : 'Cadastrar Usuário'}
+                </SubmitButton>
+              </Box>
+            </Grid>
+          </Grid>
+
+          {isSubmitting && (
+            <Box sx={{ width: '100%', mt: 2 }}>
+              <LinearProgress 
+                variant="determinate" 
+                value={uploadProgress} 
+              />
+              <Typography variant="caption" display="block" gutterBottom>
+                Progresso do upload: {uploadProgress}%
+              </Typography>
+            </Box>
+          )}
         </form>
       </FormPaper>
+
+      <Snackbar
+        open={alert.open}
+        autoHideDuration={6000}
+        onClose={handleCloseAlert}
+      >
+        <Alert 
+          onClose={handleCloseAlert} 
+          severity={alert.severity}
+          sx={{ width: '100%' }}
+        >
+          {alert.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

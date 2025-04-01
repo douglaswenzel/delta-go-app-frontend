@@ -78,6 +78,67 @@ app.get('/api/usuarios/:id', async (req, res) => {
 });
 
 app.post('/api/usuarios', upload.single('foto'), async (req, res) => {
+  try {
+    // Dados básicos do formulário
+    const { 
+      name, 
+      sobrenome, 
+      tipo, 
+      nascimento, 
+      unidade, 
+      observacoes, 
+      permisso,
+      funcionario,
+      aluno,
+      visitante
+    } = req.body;
+
+    // Informações do arquivo (se enviado)
+    const fotoInfo = req.file ? {
+      filename: req.file.filename,
+      originalname: req.file.originalname,
+      path: req.file.path
+    } : null;
+
+    // Aqui você pode salvar no banco de dados
+    // Exemplo simplificado:
+    const novoUsuario = {
+      name,
+      sobrenome,
+      tipo,
+      nascimento,
+      unidade,
+      observacoes,
+      permisso,
+      foto: fotoInfo,
+      ...(tipo === 'funcionario' && { funcionario }),
+      ...(tipo === 'aluno' && { aluno }),
+      ...(tipo === 'visitante' && { visitante }),
+      criadoEm: new Date()
+    };
+
+    // Simulando salvamento no banco de dados
+    console.log('Novo usuário criado:', novoUsuario);
+
+    res.status(201).json({
+      success: true,
+      message: 'Usuário cadastrado com sucesso',
+      data: novoUsuario
+    });
+  } catch (error) {
+    console.error('Erro ao cadastrar usuário:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao cadastrar usuário'
+    });
+  }
+});
+
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:3306');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  next();
 });
 
 async function startServer() {

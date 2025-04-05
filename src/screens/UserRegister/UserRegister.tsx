@@ -186,10 +186,10 @@ const UserRegisterScreen = () => {
     <Container>
       <Title variant="h4">Cadastro de Usuário</Title>
       
-      <FormPaper elevation={3}>
+      <FormPaper>
         <form onSubmit={handleSubmit}>
           <Grid container spacing={3}>
-            <Grid item xs={12} md={4}>
+            <Grid>
               <PhotoContainer>
                 <UserPhoto>
                   {previewPhoto ? (
@@ -216,7 +216,7 @@ const UserRegisterScreen = () => {
                 </Button>
               </PhotoContainer>
             </Grid>
-            <Grid item xs={12} md={8}>
+            <Grid>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <TextField
                   label="Nome"

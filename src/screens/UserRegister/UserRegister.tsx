@@ -191,13 +191,6 @@ const UserRegisterScreen = () => {
           <Grid container spacing={3}>
             <Grid>
               <PhotoContainer>
-                <UserPhoto>
-                  {previewPhoto ? (
-                    <img src={previewPhoto} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : (
-                    <CameraIcon fontSize="large" />
-                  )}
-                </UserPhoto>
                 <Button
                   variant="contained"
                   component="label"

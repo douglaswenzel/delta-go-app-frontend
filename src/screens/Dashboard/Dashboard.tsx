@@ -30,7 +30,7 @@ const DashboardScreen = () => {
         </DashboardButton>
 
         {/* Botão Movimentações */}
-        <DashboardButton>
+        <DashboardButton onClick={() => navigate('/movimentacoes')}>
           <ButtonIcon>
             <MovimentationsIcon fontSize="inherit" />
           </ButtonIcon>

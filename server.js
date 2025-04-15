@@ -1,89 +1,57 @@
-require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
+const bodyParser = require('body-parser');
 const multer = require('multer');
 const mysql = require('mysql2/promise');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
-// Configuração do CORS para desenvolvimento
-app.use(cors({
-  origin: 'http://localhost:3306',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+// Configuração do CORS
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || '162.241.2.230',
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME || 'dougl947_DeltaGo',
-  port: process.env.DB_PORT || 3306,
+// Configuração do banco de dados
+const dbConfig = {
+  host: '162.241.2.230', // Apenas o IP/host
+  user: 'dougl947_websitedeltago',
+  password: 'TT)exP@@AZi1',
+  database: 'dougl947_DeltaGo',
+  port: 3306, // Porta padrão do MySQL
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
-});
-
-// Middlewares
-app.use(express.json());
-app.use('/uploads', express.static('uploads'));
-
-// Rotas
-app.get('/api/usuarios', async (req, res) => {
-  try {
-    const connection = await pool.getConnection();
-    const [rows] = await connection.query(`
-      SELECT u.*, 
-        f.cargo, f.setor, f.data_admissao,
-        a.matricula, a.curso, a.turma,
-        v.motivo_visita, v.visitado, v.data_visita
-      FROM dougl947_DeltaGo.usuario u
-      LEFT JOIN dougl947_DeltaGo.funcionario f ON u.user_id = f.user_id
-      LEFT JOIN dougl947_DeltaGo.aluno a ON u.user_id = a.usuario_id
-      LEFT JOIN dougl947_DeltaGo.visitante v ON u.user_id = v.usuario_id
-    `);
-    connection.release();
-    res.json(rows);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  queueLimit: 0,
+  ssl: { // Muitos provedores exigem SSL
+    rejectUnauthorized: true,
+    ca: fs.readFileSync(path.resolve(__dirname, 'cacert.pem')) // Se necessário
   }
-});
+};
 
-app.get('/api/usuarios/:id', async (req, res) => {
+
+// Criar pool de conexões
+const pool = mysql.createPool(dbConfig);
+
+// Rota para cadastrar usuário
+app.post('/api/register', upload.single('foto'), async (req, res) => {
+  let connection;
   try {
-    const connection = await pool.getConnection();
-    const [rows] = await connection.query(`
-      SELECT u.*, 
-        f.cargo, f.setor, f.data_admissao,
-        a.matricula, a.curso, a.turma,
-        v.motivo_visita, v.visitado, v.data_visita,
-        fu.caminho_foto
-      FROM dougl947_DeltaGo.usuario u
-      LEFT JOIN dougl947_DeltaGo.funcionario f ON u.user_id = f.user_id
-      LEFT JOIN dougl947_DeltaGo.aluno a ON u.user_id = a.usuario_id
-      LEFT JOIN dougl947_DeltaGo.visitante v ON u.user_id = v.usuario_id
-      LEFT JOIN dougl947_DeltaGo.fotos_usuarios fu ON u.user_id = fu.usuario_id
-      WHERE u.user_id = ?
-    `, [req.params.id]);
+    connection = await pool.getConnection();
     
-    connection.release();
-    if (rows.length === 0) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
-    }
-    res.json(rows[0]);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+    // Iniciar transação
+    await connection.beginTransaction();
 
-app.post('/api/usuarios', upload.single('foto'), async (req, res) => {
-  try {
-    // Dados básicos do formulário
+    // Extrair dados do formulário
     const { 
       name, 
       sobrenome, 
       tipo, 
+      email, 
+      telefone, 
+      cpf, 
+      rg, 
       nascimento, 
       unidade, 
       observacoes, 
@@ -93,71 +61,128 @@ app.post('/api/usuarios', upload.single('foto'), async (req, res) => {
       visitante
     } = req.body;
 
-    // Informações do arquivo (se enviado)
-    const fotoInfo = req.file ? {
-      filename: req.file.filename,
-      originalname: req.file.originalname,
-      path: req.file.path
-    } : null;
+    // Inserir usuário na tabela principal
+    const [userResult] = await connection.execute(
+      `INSERT INTO usuarios (
+        nome, 
+        sobrenome, 
+        tipo, 
+        email, 
+        telefone, 
+        cpf, 
+        rg, 
+        nascimento, 
+        unidade, 
+        observacoes, 
+        permisso,
+        foto_path
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        name, 
+        sobrenome, 
+        tipo, 
+        email, 
+        telefone, 
+        cpf, 
+        rg, 
+        nascimento, 
+        unidade, 
+        observacoes, 
+        permisso,
+        req.file ? req.file.path : null
+      ]
+    );
 
-    // Aqui você pode salvar no banco de dados
-    // Exemplo simplificado:
-    const novoUsuario = {
-      name,
-      sobrenome,
-      tipo,
-      nascimento,
-      unidade,
-      observacoes,
-      permisso,
-      foto: fotoInfo,
-      ...(tipo === 'funcionario' && { funcionario }),
-      ...(tipo === 'aluno' && { aluno }),
-      ...(tipo === 'visitante' && { visitante }),
-      criadoEm: new Date()
-    };
+    const userId = userResult.insertId;
 
-    // Simulando salvamento no banco de dados
-    console.log('Novo usuário criado:', novoUsuario);
+    // Inserir dados específicos do tipo de usuário
+    if (tipo === 'funcionario' && funcionario) {
+      await connection.execute(
+        `INSERT INTO funcionarios (
+          usuario_id, 
+          cargo, 
+          setor, 
+          data_admissao
+        ) VALUES (?, ?, ?, ?)`,
+        [userId, funcionario.cargo, funcionario.setor, funcionario.data_admissao]
+      );
+    } else if (tipo === 'aluno' && aluno) {
+      await connection.execute(
+        `INSERT INTO alunos (
+          usuario_id, 
+          matricula, 
+          curso, 
+          turma, 
+          data_ingresso
+        ) VALUES (?, ?, ?, ?, ?)`,
+        [userId, aluno.matricula, aluno.curso, aluno.turma, aluno.data_ingresso]
+      );
+    } else if (tipo === 'visitante' && visitante) {
+      await connection.execute(
+        `INSERT INTO visitantes (
+          usuario_id, 
+          motivo_visita, 
+          visitado, 
+          data_visita, 
+          empresa
+        ) VALUES (?, ?, ?, ?, ?)`,
+        [userId, visitante.motivo_visita, visitante.visitado, visitante.data_visita, visitante.empresa]
+      );
+    }
 
-    res.status(201).json({
-      success: true,
-      message: 'Usuário cadastrado com sucesso',
-      data: novoUsuario
-    });
+    // Commit da transação
+    await connection.commit();
+
+    res.status(201).json({ success: true, message: 'Usuário cadastrado com sucesso!' });
   } catch (error) {
+    // Rollback em caso de erro
+    if (connection) await connection.rollback();
+    
     console.error('Erro ao cadastrar usuário:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao cadastrar usuário'
-    });
+    res.status(500).json({ success: false, message: 'Erro ao cadastrar usuário' });
+  } finally {
+    if (connection) connection.release();
   }
 });
 
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:3306');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  next();
+// Servir arquivos estáticos (seu app React)
+app.use(express.static(path.join(__dirname, 'build')));
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'build', 'index.html'));
 });
 
-async function startServer() {
+app.get('/api/movimentacoes', async (req, res) => {
+  let connection;
   try {
-    const connection = await pool.getConnection();
-    const [rows] = await connection.query('SELECT 1 + 1 AS solution');
-    connection.release();
-    
-    console.log('✅ Conexão com o banco de dados estabelecida com sucesso!');
-    console.log(`Teste de consulta: 1 + 1 = ${rows[0].solution}`);
-    
-    const PORT = process.env.PORT || 5000;
-    app.listen(PORT, () => {
-      console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
-    });
-  } catch (error) {
-    console.error('❌ Falha na conexão com o banco de dados:', error.message);
-    process.exit(1);
-  }
-}
+    connection = await pool.getConnection();
 
-startServer();
+    const [logs] = await connection.execute(`
+      SELECT 
+        logs_acesso.log_id,
+        usuario.nome,
+        usuario.sobrenome,
+        logs_acesso.acao,
+        logs_acesso.data_hora,
+        logs_acesso.descricao,
+        logs_acesso.ip_address,
+        logs_acesso.dispositivo
+      FROM logs_acesso
+      JOIN usuario ON logs_acesso.usuario_id = usuario.id
+      ORDER BY logs_acesso.data_hora DESC
+    `);
+    
+
+    res.json(logs);
+  } catch (error) {
+    console.error('Erro ao buscar movimentações:', error);
+    res.status(500).json({ success: false, message: 'Erro ao buscar movimentações' });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+const PORT = 3308;
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+});
